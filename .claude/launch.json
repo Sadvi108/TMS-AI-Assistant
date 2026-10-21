@@ -1,0 +1,30 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "tms-assistant",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PHP_CLI_SERVER_WORKERS=4",
+        "php",
+        "-S",
+        "localhost:8000",
+        "-t",
+        "public"
+      ],
+      "port": 8000
+    },
+    {
+      "name": "mock-dify",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "PHP_CLI_SERVER_WORKERS=4",
+        "php",
+        "-S",
+        "localhost:8081",
+        "tools/mock-dify.php"
+      ],
+      "port": 8081
+    }
+  ]
+}

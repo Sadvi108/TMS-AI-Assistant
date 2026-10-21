@@ -1,0 +1,14 @@
+# Only used when the web root is this folder instead of /public
+# (common on shared hosting). Keeps secrets private and serves /public.
+<IfModule mod_authz_core.c>
+    <FilesMatch "^\.(env|git)">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(src|storage|tools)(/|$) - [F,L]
+    RewriteCond %{REQUEST_URI} !/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
