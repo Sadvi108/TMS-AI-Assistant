@@ -107,6 +107,8 @@ The free plan allows only 10 annotation replies, so the knowledge base is the si
 
 Models: Groq `gpt-oss-120b` for answers, Gemini `gemini-embedding-001` for matching, both on your own API keys (Integrations → Model Provider). The knowledge base uses hybrid search with weighted score (0.7 semantic / 0.3 keyword) and no rerank model.
 
+If AI answers stop showing source chips, open the workflow, check **Features → Citations and Attributions** is on, and publish again. Every publish copies the draft's features, so a draft with citations off removes them from the live site.
+
 **Adding or changing answers:** the free plan can't add single chunks, so upload a file in **Knowledge → tms-knowledge-FAQ → Add file**. Write one Q&A per line and keep Dify's default chunk settings; every line becomes one entry:
 
 ```
