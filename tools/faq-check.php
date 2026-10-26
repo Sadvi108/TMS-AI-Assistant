@@ -6,12 +6,15 @@
  *
  *   php tools/faq-check.php [--base=http://localhost:8000] [--lang=en] [--only=3,17] [--gap=3.2] tools/faq.csv
  *
+ * --suggestions asks the site's suggested questions (src/topics.php, English and
+ * Bahasa Malaysia) instead, after checking each English one is worded as in the CSV.
+ *
  * Full results go to storage/faq-report.json. Exit code 1 if any question errored.
  */
 
 declare(strict_types=1);
 
-$opts = getopt('', ['base::', 'lang::', 'only::', 'gap::'], $rest);
+$opts = getopt('', ['base::', 'lang::', 'only::', 'gap::', 'suggestions'], $rest);
 $file = $argv[$rest] ?? __DIR__ . '/faq.csv';
 $base = rtrim($opts['base'] ?? 'http://localhost:8000', '/');
 $lang = $opts['lang'] ?? 'en';
@@ -26,6 +29,20 @@ fgetcsv($handle, null, ',', '"', ''); // header
 while (($row = fgetcsv($handle, null, ',', '"', '')) !== false) {
     if (($row[0] ?? '') !== '') {
         $rows[] = [$row[0], $row[1] ?? ''];
+    }
+}
+
+if (isset($opts['suggestions'])) {
+    $faq = array_column($rows, 1, 0);
+    $rows = [];
+    foreach ((require __DIR__ . '/../src/topics.php')['topics'] as $topic) {
+        foreach ($topic['questions'] as $q) {
+            if (!isset($faq[$q['en']])) {
+                echo "Not worded as in the FAQ, so it won't be Verified: {$q['en']}\n";
+            }
+            $rows[] = [$q['en'], $faq[$q['en']] ?? ''];
+            $rows[] = [$q['ms'], $faq[$q['en']] ?? ''];
+        }
     }
 }
 $results = [];
