@@ -1,0 +1,13 @@
+.git
+.github
+.claude
+.env
+.env.*
+!.env.example
+storage/*
+!storage/.gitignore
+!storage/.htaccess
+tools/mock-dify.php
+start.sh
+*.md
+.DS_Store

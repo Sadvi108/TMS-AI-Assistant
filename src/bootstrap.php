@@ -160,6 +160,22 @@ function emit(array $event): void
     flush();
 }
 
+/**
+ * The visitor's IP. Behind a proxy that sets the header itself (Vercel's edge),
+ * REMOTE_ADDR is the proxy, so TRUST_PROXY=true reads X-Real-IP / X-Forwarded-For.
+ * Only enable it behind such a proxy: otherwise visitors can spoof the header.
+ */
+function client_ip(): string
+{
+    if (env('TRUST_PROXY') === 'true') {
+        $forwarded = $_SERVER['HTTP_X_REAL_IP'] ?? explode(',', $_SERVER['HTTP_X_FORWARDED_FOR'] ?? '')[0];
+        if (filter_var(trim($forwarded), FILTER_VALIDATE_IP)) {
+            return trim($forwarded);
+        }
+    }
+    return $_SERVER['REMOTE_ADDR'] ?? '';
+}
+
 /** Sliding-window limit per client IP, stored in small files under storage/. */
 function rate_limited(string $bucket, int $max, int $seconds): bool
 {
@@ -167,7 +183,7 @@ function rate_limited(string $bucket, int $max, int $seconds): bool
     if (!is_dir($dir) && !@mkdir($dir, 0775, true)) {
         return false;
     }
-    $handle = @fopen($dir . '/' . hash('sha256', $bucket . '|' . ($_SERVER['REMOTE_ADDR'] ?? '')), 'c+');
+    $handle = @fopen($dir . '/' . hash('sha256', $bucket . '|' . client_ip()), 'c+');
     if ($handle === false) {
         return false;
     }
