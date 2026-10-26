@@ -65,15 +65,20 @@ printf '\n'
 # "not found", so check through Cloudflare's DNS-over-HTTPS instead of the system's.
 public() { curl -s -o /dev/null -w '%{http_code}' -m 5 --doh-url https://1.1.1.1/dns-query "$URL$1"; }
 printf '  waiting for %s' "$URL"
-for _ in $(seq 1 30); do
+for _ in $(seq 1 60); do
     [[ $(public /v1/parameters) == 401 ]] && break
-    sleep 2
+    kill -0 "$TUNNEL_PID" 2>/dev/null || { printf '\n'; fail "cloudflared exited. See storage/tunnel.log"; }
+    sleep 3
     printf '.'
 done
 printf '\n'
-[[ $(public /v1/parameters) == 401 ]] || fail "The tunnel URL doesn't reach Dify yet. See storage/tunnel.log"
-ok "Dify API reachable through the tunnel"
-[[ $(public /apps) == 404 ]] && ok "Dify console is not exposed"
+if [[ $(public /v1/parameters) == 401 ]]; then
+    ok "Dify API reachable through the tunnel"
+    [[ $(public /apps) == 404 ]] && ok "Dify console is not exposed"
+else
+    # New quick-tunnel names sometimes take several minutes to resolve; the tunnel itself is up.
+    printf '  \033[33m!\033[0m not reachable from here yet; keeping the tunnel open, it usually starts working within a few minutes\n'
+fi
 
 printf '\n\033[32;1mSet this in Vercel:\033[0m  DIFY_API_BASE=%s/v1\n' "$URL"
 echo "Keep this running while the Vercel site should answer. Ctrl+C closes the tunnel."
