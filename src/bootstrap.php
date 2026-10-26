@@ -47,6 +47,10 @@ function app_config(): array
         'dify_key' => env('DIFY_API_KEY'),
         'language_input' => env('DIFY_LANGUAGE_INPUT'),
         'handoff_marker' => env('HANDOFF_MARKER', '[[HANDOFF]]'),
+        'handoff_phrases' => array_values(array_filter(array_map('trim', explode('|', env(
+            'HANDOFF_PHRASES',
+            "can't answer that from TMS information|cannot answer that from TMS information|can only assist with TMS|can only help with TMS|tidak dapat menjawab|hanya dapat membantu"
+        ))))),
         'website_url' => env('TMS_WEBSITE_URL', 'https://maclubsystem.com'),
         'support' => [
             'email' => env('TMS_SUPPORT_EMAIL', '[Official TMS email]'),

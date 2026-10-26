@@ -72,6 +72,9 @@ $inputs = $config['language_input'] !== ''
 
 $answer = '';
 $meta = ['conversation_id' => $conversationId, 'message_id' => ''];
+$endMetadata = null;
+$workflowStarted = false;
+$endedBeforeWorkflow = false;
 
 try {
     $client->streamChat([
@@ -79,7 +82,7 @@ try {
         'query' => $query,
         'user' => $user,
         'conversation_id' => $conversationId,
-    ], function (array $event) use (&$answer, &$meta, $config, $query, $lang, $text): bool {
+    ], function (array $event) use (&$answer, &$meta, &$endMetadata, &$workflowStarted, &$endedBeforeWorkflow, $text): bool {
         if (connection_aborted()) {
             return false;
         }
@@ -108,22 +111,13 @@ try {
                 break;
 
             case 'message_end':
-                $metadata = is_array($event['metadata'] ?? null) ? $event['metadata'] : [];
-                $handoff = str_contains($answer, $config['handoff_marker']);
-                emit([
-                    'type' => 'end',
-                    // Dify "annotation reply": an answer written and approved by TMS staff.
-                    'verified' => !empty($metadata['annotation_reply']),
-                    'sources' => sources_from($metadata['retriever_resources'] ?? []),
-                    'handoff' => $handoff,
-                ]);
-                if ($handoff) {
-                    app_log('unanswered.jsonl', [
-                        'question' => $query,
-                        'answer' => trim(str_replace($config['handoff_marker'], '', $answer)),
-                        'lang' => $lang,
-                    ] + $meta);
-                }
+                // Held until the stream closes: Chatflow apps only reveal an annotation hit afterwards.
+                $endMetadata = is_array($event['metadata'] ?? null) ? $event['metadata'] : [];
+                $endedBeforeWorkflow = !$workflowStarted;
+                break;
+
+            case 'workflow_started':
+                $workflowStarted = true;
                 break;
 
             case 'workflow_finished':
@@ -140,6 +134,25 @@ try {
         }
         return true;
     });
+
+    if ($endMetadata !== null) {
+        $handoff = str_contains($answer, $config['handoff_marker']) || says_cannot_answer($answer, $config['handoff_phrases']);
+        emit([
+            'type' => 'end',
+            // Dify "annotation reply": an answer written and approved by TMS staff. Chatbot apps
+            // flag it in the metadata; Chatflow apps answer before the workflow even starts.
+            'verified' => !empty($endMetadata['annotation_reply']) || ($endedBeforeWorkflow && $workflowStarted),
+            'sources' => sources_from($endMetadata['retriever_resources'] ?? []),
+            'handoff' => $handoff,
+        ]);
+        if ($handoff) {
+            app_log('unanswered.jsonl', [
+                'question' => $query,
+                'answer' => trim(str_replace($config['handoff_marker'], '', preg_replace('/<think>.*?<\/think>/s', '', $answer) ?? $answer)),
+                'lang' => $lang,
+            ] + $meta);
+        }
+    }
 } catch (DifyException $e) {
     if ($e->status === 404 && stripos($e->getMessage(), 'conversation') !== false) {
         // The browser held an old conversation id; it starts a fresh one and retries.
@@ -149,6 +162,18 @@ try {
         $userMessage = $e->status === 401 ? $text['setup'] : $text['generic'];
         emit(['type' => 'error', 'message' => $userMessage . debug_detail("Dify {$e->status}: {$e->getMessage()}")]);
     }
+}
+
+/** True when the visible answer (reasoning stripped) is the prompt's "I can't answer that" fallback. */
+function says_cannot_answer(string $answer, array $phrases): bool
+{
+    $visible = str_replace('’', "'", preg_replace('/<think>.*?<\/think>/s', '', $answer) ?? $answer);
+    foreach ($phrases as $phrase) {
+        if (stripos($visible, $phrase) !== false) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /** Turns Dify retriever_resources into at most three de-duplicated citation chips. */

@@ -1,0 +1,50 @@
+question,answer
+What is TMS?,TMS is a tournament management platform that helps organisers and participating teams manage competition activities.
+How do I join a tournament?,Select the tournament you wish to participate in and follow the registration instructions provided.
+Do I need an account?,Some functions require you to sign in with an authorised account.
+How do I register a new club?,Choose New Club Registration and complete the required club information.
+My club is already registered. What should I do?,"Use your existing club account. If you cannot access it, contact TMS support."
+Can my club participate in multiple tournaments?,"Yes, subject to each tournament's registration and eligibility requirements."
+How do I find the tournament closing date?,Check the information displayed for the selected tournament.
+I forgot my login password. What should I do?,Use the available password recovery option or contact TMS support for assistance.
+How do I register a player?,"Sign in, select the tournament and player registration function, complete the required information, and submit."
+Can one player register for multiple events?,"Yes, provided the selected tournament permits those events and the player meets the requirements."
+Why can't I register my player?,"Check the required fields, selected category, registration deadline, and any error message. Contact support if the problem continues."
+Why is my player's name missing?,"Check your tournament, team, event, and search selections. Contact support if the registration cannot be found."
+Can I change a player's name?,Request a correction through the permitted registration process. Changes after draw generation may require organiser approval.
+Can I change a player's weight category?,Category changes depend on tournament rules and registration status. Contact the organiser when approval is required.
+Can I change the player's age group?,Verify the date of birth and selected event. The age group must follow the applicable tournament category rules.
+Why can't I find the correct category?,"The selected category may not be available for that event, age group, or gender. Ask the organiser to verify it."
+Can I remove a registered player?,Cancellation depends on tournament rules and registration status. Contact the organiser if the draw has already been generated.
+Can I register after the closing date?,Late registration requires organiser approval and may not be available for every tournament.
+What events can I participate in?,"Available events depend on the tournament and may include Kyorugi, Poomsae, or other configured competitions."
+What is Kyorugi?,Kyorugi is a Taekwondo sparring competition between opponents.
+What is Poomsae?,Poomsae is a Taekwondo competition involving the performance of prescribed movement patterns.
+What is Poomsae Individual?,It is an event where one participant competes individually.
+What is Poomsae Pair?,"It is a two-person event, subject to the tournament's pair eligibility rules."
+What is Poomsae Team?,"It is a group event, commonly involving three participants, subject to tournament rules."
+What is Poomsae Family?,"It is an event involving eligible family participants, where offered by the tournament."
+Can I participate in both Kyorugi and Poomsae?,"Yes, if the tournament permits both registrations and the participant meets the eligibility requirements."
+How do I check my registration fee?,Review the fee information for the selected tournament and event before confirming registration.
+Why is my payment still pending?,Payment verification may not be completed. Contact the organiser with your payment details.
+Can I register first and pay later?,This depends on the selected tournament's payment and registration rules.
+Can I cancel my registration and get a refund?,Refunds are subject to the organiser's cancellation and refund policy.
+How do I check my team's outstanding payment?,"Sign in and review the available payment information, or contact the organiser for confirmation."
+What should I do if I paid but my registration is not confirmed?,Keep your payment reference and contact the organiser or TMS support. Avoid making a duplicate payment before verification.
+What is a draw lot?,A draw lot determines the competition positions of registered participants by seeding or ranking.
+How do I view the bout chart?,Select the relevant tournament and use the available bout chart or competition viewing function. URL: https://maclubsystem.com/competition (select event)
+Why is my player not in the bout chart?,"Check the event and category. The draw may not yet be generated, or the registration may need verification."
+Can I change a player after the draw?,Changes after the draw require organiser review because they may affect other participants.
+What is a BYE?,A BYE allows a participant to advance through a round without competing against an opponent in that round. (Walkover)
+How do I know my match number?,Check the published bout chart or competition schedule. There will be a live schedule and live score for all users and parents and players.
+How do I know which ring to report to?,Refer to the official competition schedule or ring assignment information. There will be a push notification for all the information.
+Can match times or ring assignments change?,Yes. Follow the latest official information (live schedule) provided by the organiser.
+How can I watch live competition progress?,Use the available live event viewing function for the selected tournament. https://maclubsystem.com/competition/
+How can I check whether my match has finished?,Review the latest published match status on live schedule/ score.
+How do I check the winner of a match?,Refer to the official recorded result when it becomes available. Push notification will be sent for each match on winning status.
+What should I do if the result is incorrect?,Inform the authorised competition officials or organiser immediately for verification.
+What is a walkover?,A walkover is a result awarded according to competition rules when a match cannot be contested as scheduled.
+How can I see the medal tally?,"Open the medal tally for the relevant tournament, if published."
+Why has my medal not appeared in the tally?,The result may be awaiting confirmation or publication. Contact the organiser if the issue persists.
+How do I contact TMS support?,"Use the support chatbot and provide your club name, contact person, contact number, and a description of the problem."
+What happens if the chatbot cannot solve my issue?,Your enquiry can be escalated to TMS support staff for further assistance.

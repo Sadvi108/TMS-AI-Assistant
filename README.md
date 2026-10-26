@@ -17,18 +17,36 @@ Fill in `.env`:
 
 | Key | What to put |
 | --- | --- |
-| `DIFY_API_BASE` | `https://api.dify.ai/v1` for Dify Cloud, or `https://<your-dify-host>/v1` |
-| `DIFY_API_KEY` | Dify → your app → **API Access** → API Key (starts with `app-`) |
+| `DIFY_API_BASE` | `https://api.dify.ai/v1` for Dify Cloud, `http://localhost/v1` for Dify on this Mac |
+| `DIFY_API_KEY` | Dify → your app → **Access Point** (called *API Access* before Dify 1.17) → API Key (starts with `app-`) |
 | `TMS_SUPPORT_EMAIL` / `_PHONE` / `TMS_OFFICE_HOURS` | Shown on the "contact TMS" card |
 | `TMS_WEBSITE_URL` | Target of "Back to TMS website" |
 
-Run locally:
+### Starting everything (Dify on this Mac)
+
+With Dify self-hosted on this Mac, the assistant needs Docker Desktop (which runs Dify), Ollama (the `bge-m3` model Dify uses to match questions) and the PHP server. One command starts whatever isn't running, waits for Dify, checks that a test question gets answered and opens the browser:
+
+```bash
+./start.sh
+```
+
+Ctrl+C stops the assistant's web server; Docker, Dify and Ollama keep running. `./start.sh --no-open` skips the browser. If Dify isn't in `~/dify/docker`, run `DIFY_DIR=/path/to/dify/docker ./start.sh`.
+
+To run only the web server:
 
 ```bash
 PHP_CLI_SERVER_WORKERS=4 php -S localhost:8000 -t public
 ```
 
 Open http://localhost:8000. (The extra workers let "stop" and feedback requests through while an answer is streaming; PHP's dev server handles one request at a time otherwise.)
+
+### Checking every FAQ question
+
+`tools/faq-check.php` sends each question in `tools/faq.csv` through the running app and reports whether it got a verified answer, an AI answer with sources, a hand-off or an error:
+
+```bash
+php tools/faq-check.php tools/faq.csv
+```
 
 ### Try it without a Dify key
 
