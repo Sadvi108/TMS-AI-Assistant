@@ -1,4 +1,4 @@
-name: PHP Composer
+name: Syntax check
 
 on:
   push:
@@ -10,30 +10,21 @@ permissions:
   contents: read
 
 jobs:
-  build:
-
+  lint:
     runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Validate composer.json and composer.lock
-      run: composer validate --strict
+    - name: PHP (php -l)
+      run: |
+        php --version
+        find . -name '*.php' -not -path './vendor/*' -print0 | xargs -0 -n1 php -l
 
-    - name: Cache Composer packages
-      id: composer-cache
-      uses: actions/cache@v3
-      with:
-        path: vendor
-        key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-php-
+    - name: JavaScript (node --check)
+      run: |
+        node --version
+        find public -name '*.js' -print0 | xargs -0 -n1 node --check
 
-    - name: Install dependencies
-      run: composer install --prefer-dist --no-progress
-
-    # Add a test script to composer.json, for instance: "test": "vendor/bin/phpunit"
-    # Docs: https://getcomposer.org/doc/articles/scripts.md
-
-    # - name: Run test suite
-    #   run: composer run-script test
+    - name: Shell (bash -n)
+      run: bash -n start.sh
