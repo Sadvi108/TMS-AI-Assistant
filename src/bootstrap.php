@@ -47,6 +47,8 @@ function app_config(): array
         'dify_key' => env('DIFY_API_KEY'),
         'language_input' => env('DIFY_LANGUAGE_INPUT'),
         'handoff_marker' => env('HANDOFF_MARKER', '[[HANDOFF]]'),
+        // Node id of the Chatflow Answer node that returns an FAQ answer word for word.
+        'faq_answer_node' => env('DIFY_FAQ_ANSWER_NODE', 'faq_answer'),
         'handoff_phrases' => array_values(array_filter(array_map('trim', explode('|', env(
             'HANDOFF_PHRASES',
             "can't answer that from TMS information|cannot answer that from TMS information|can only assist with TMS|can only help with TMS|tidak dapat menjawab|hanya dapat membantu"

@@ -75,6 +75,7 @@ $meta = ['conversation_id' => $conversationId, 'message_id' => ''];
 $endMetadata = null;
 $workflowStarted = false;
 $endedBeforeWorkflow = false;
+$faqNodeRan = false;
 
 try {
     $client->streamChat([
@@ -82,7 +83,7 @@ try {
         'query' => $query,
         'user' => $user,
         'conversation_id' => $conversationId,
-    ], function (array $event) use (&$answer, &$meta, &$endMetadata, &$workflowStarted, &$endedBeforeWorkflow, $text): bool {
+    ], function (array $event) use (&$answer, &$meta, &$endMetadata, &$workflowStarted, &$endedBeforeWorkflow, &$faqNodeRan, $config, $text): bool {
         if (connection_aborted()) {
             return false;
         }
@@ -120,6 +121,13 @@ try {
                 $workflowStarted = true;
                 break;
 
+            case 'node_started':
+                // The Chatflow's "exact FAQ answer" node returns a knowledge-base answer word for word.
+                if (($event['data']['node_id'] ?? '') === $config['faq_answer_node']) {
+                    $faqNodeRan = true;
+                }
+                break;
+
             case 'workflow_finished':
                 if (($event['data']['status'] ?? '') === 'failed' && $answer === '') {
                     error_log('Dify workflow failed: ' . ($event['data']['error'] ?? ''));
@@ -139,9 +147,9 @@ try {
         $handoff = str_contains($answer, $config['handoff_marker']) || says_cannot_answer($answer, $config['handoff_phrases']);
         emit([
             'type' => 'end',
-            // Dify "annotation reply": an answer written and approved by TMS staff. Chatbot apps
-            // flag it in the metadata; Chatflow apps answer before the workflow even starts.
-            'verified' => !empty($endMetadata['annotation_reply']) || ($endedBeforeWorkflow && $workflowStarted),
+            // Verified = TMS's own wording: a Dify annotation reply (Chatbot apps flag it in the
+            // metadata; Chatflow apps answer before the workflow starts) or the exact-FAQ node.
+            'verified' => !empty($endMetadata['annotation_reply']) || ($endedBeforeWorkflow && $workflowStarted) || $faqNodeRan,
             'sources' => sources_from($endMetadata['retriever_resources'] ?? []),
             'handoff' => $handoff,
         ]);

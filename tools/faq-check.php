@@ -4,19 +4,21 @@
  * Sends every question in a CSV (question,answer) through the running app's
  * api/chat.php — one fresh conversation each — and reports how it was answered.
  *
- *   php tools/faq-check.php [--base=http://localhost:8000] [--lang=en] [--only=3,17] tools/faq.csv
+ *   php tools/faq-check.php [--base=http://localhost:8000] [--lang=en] [--only=3,17] [--gap=3.2] tools/faq.csv
  *
  * Full results go to storage/faq-report.json. Exit code 1 if any question errored.
  */
 
 declare(strict_types=1);
 
-$opts = getopt('', ['base::', 'lang::', 'only::'], $rest);
+$opts = getopt('', ['base::', 'lang::', 'only::', 'gap::'], $rest);
 $file = $argv[$rest] ?? __DIR__ . '/faq.csv';
 $base = rtrim($opts['base'] ?? 'http://localhost:8000', '/');
 $lang = $opts['lang'] ?? 'en';
 $only = isset($opts['only']) ? array_map('intval', explode(',', $opts['only'])) : null;
-$gap = 3.2; // api/chat.php allows 20 questions a minute per IP
+// Seconds between questions: api/chat.php allows 20 a minute per IP; Dify Cloud's free plan
+// allows about 10 knowledge lookups a minute, so use --gap=6.5 against it.
+$gap = (float) ($opts['gap'] ?? 3.2);
 
 $rows = [];
 $handle = fopen($file, 'r');
