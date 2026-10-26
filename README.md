@@ -94,9 +94,33 @@ Optional: if your app has an input variable for the language, set `DIFY_LANGUAGE
 
 ### Vercel
 
-The Vercel project uses the **Container** framework preset, which builds the root `Dockerfile` (PHP 8.3 serving `public/` on port 80). Set `DIFY_API_BASE`, `DIFY_API_KEY` and the `TMS_*` contact details under **Settings → Environment Variables**, then redeploy.
+The Vercel project uses the **Container** framework preset, which builds the root `Dockerfile` (PHP 8.3 serving `public/` on port 80). Set `DIFY_API_BASE`, `DIFY_API_KEY` and the `TMS_*` contact details under **Settings → Environment Variables**, then redeploy. `/api/health.php` shows whether the server can see them (true/false only).
 
-Vercel can't reach `http://localhost`, so to keep using the Dify on this Mac, open a tunnel:
+The live site uses **Dify Cloud** (`DIFY_API_BASE=https://api.dify.ai/v1`), so it runs without this Mac.
+
+### Dify Cloud (free plan)
+
+The free plan allows only 10 annotation replies, so the knowledge base is the single source of answers. The Chatflow (built from the local export by `tools/build-cloud-dsl.py`) runs **Knowledge Retrieval → Exact FAQ match → Verified FAQ answer**, and sends anything that isn't (almost) exactly an FAQ question to the LLM:
+
+- An exact FAQ question gets that FAQ's answer word for word, shown as **Verified by TMS** (node id `faq_answer`; matcher code in `tools/dify-faq-match.py`).
+- Anything else gets an AI answer from the knowledge base, or the Contact TMS card when the knowledge base doesn't cover it.
+
+Models: Groq `gpt-oss-120b` for answers, Gemini `gemini-embedding-001` for matching, both on your own API keys (Integrations → Model Provider). The knowledge base uses hybrid search with weighted score (0.7 semantic / 0.3 keyword) and no rerank model.
+
+**Adding or changing answers:** the free plan can't add single chunks, so upload a file in **Knowledge → tms-knowledge-FAQ → Add file**. Write one Q&A per line and keep Dify's default chunk settings; every line becomes one entry:
+
+```
+Q: How do I contact the organiser? A: Use the organiser contact shown on the tournament page.
+Q: Can I change my club name? A: Contact TMS support with your club ID and the new name.
+```
+
+New entries are used immediately, with no redeploy. To change an existing answer, edit the line in your file and upload it again (then delete the old document), or replace `tms-knowledge-FAQ-EN.txt`.
+
+**Free plan limits:** about 10 knowledge lookups a minute (each question is one), 5,000 API calls a month, 50 documents / 50 MB. Run the FAQ check against it with `php tools/faq-check.php --base=https://tms-ai-drab.vercel.app --gap=6.5 tools/faq.csv`.
+
+### Using the Dify on this Mac instead
+
+Vercel can't reach `http://localhost`, so to point the live site at the Dify on this Mac, open a tunnel:
 
 ```bash
 ./start.sh     # Docker, Dify, Ollama
