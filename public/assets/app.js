@@ -8,18 +8,17 @@
     const boot = JSON.parse(document.getElementById('boot').textContent);
 
     const app = document.querySelector('.app');
-    const sidebar = document.getElementById('sidebar');
-    const scrim = document.querySelector('.scrim');
-    const drawerToggle = document.querySelector('[data-action="open-drawer"]');
     const scroller = document.getElementById('scroller');
     const thread = document.getElementById('thread');
     const cards = document.getElementById('cards');
     const cardsLabel = document.getElementById('cards-label');
     const suggest = document.getElementById('suggest');
+    const heroSlot = document.getElementById('hero-slot');
+    const dockSlot = document.getElementById('dock-slot');
     const form = document.getElementById('composer');
     const input = document.getElementById('question');
     const sendBtn = document.getElementById('send');
-    const narrow = matchMedia('(max-width: 900px)');
+    const narrow = matchMedia('(max-width: 720px)');
 
     const state = {
         lang: boot.lang,
@@ -102,7 +101,8 @@
             list = null;
         };
 
-        for (const line of src.replace(/\r\n?/g, '\n').split('\n')) {
+        // Some models emit narrow/no-break spaces (U+202F, U+00A0) that render as a missing gap.
+        for (const line of src.replace(/\r\n?/g, '\n').replace(/[  ]/g, ' ').split('\n')) {
             if (code) {
                 if (/^\s*```/.test(line)) {
                     out.push(`<pre><code>${escapeHtml(code.join('\n'))}</code></pre>`);
@@ -161,6 +161,7 @@
     /** "[[HANDOFF]] Title\nBody" → {title, body}. Title falls back to a default. */
     function splitHandoff(text) {
         const at = text.indexOf(boot.marker);
+        if (at < 0) return { title: '', body: text }; // flagged by the server's "can't answer" phrases
         const before = text.slice(0, at).trim();
         const after = text.slice(at + boot.marker.length).replace(/^[\s:]+/, '');
         const newline = after.indexOf('\n');
@@ -175,9 +176,13 @@
 
     const sourceLabel = (s) => s.title + (s.page ? ` · ${t('page')} ${s.page}` : s.section ? ` · ${t('section')} ${s.section}` : '');
 
-    function badge(key) {
+    const prose = (markdown) => h('div', { class: 'prose', html: renderMarkdown(markdown) });
+
+    const mark = () => h('span', { class: 'mark', 'aria-hidden': 'true' }, icon('sparkles'));
+
+    function status(key) {
         const verified = key === 'verified';
-        return h('div', { class: `badge ${verified ? 'badge--verified' : 'badge--ai'}` }, icon(verified ? 'check-circle' : 'sparkles'), tx(key));
+        return h('span', { class: `status ${verified ? 'status--verified' : 'status--ai'}` }, icon(verified ? 'check-circle' : 'sparkles'), tx(key));
     }
 
     function sourcesRow(sources) {
@@ -199,32 +204,41 @@
         );
     }
 
-    /* ---------- Messages ---------- */
+    /* ---------- Conversation turns: the question, then its answer ---------- */
 
-    function addUserMessage(text) {
-        const bubble = h('div', { class: 'bubble', text });
-        const stack = h('div', { class: 'stack' }, bubble);
-        const node = h('div', { class: 'msg msg--user' }, stack);
+    function startTurn(text) {
+        const question = h('p', { class: 'question', text });
+        const asked = h('div', { class: 'turn-q' }, question);
+        const answer = h('div', { class: 'answer' });
+        const node = h('article', { class: 'turn' }, asked, answer);
         thread.append(node);
         return {
             node,
+            answer,
             showRedacted(clean) {
-                bubble.textContent = clean;
-                stack.append(h('p', { class: 'redacted-note' }, icon('shield'), tx('redacted')));
+                question.textContent = clean;
+                asked.append(h('p', { class: 'redacted-note' }, icon('shield'), tx('redacted')));
             },
         };
     }
 
     class BotMessage {
-        constructor() {
+        constructor(turn) {
             this.text = '';
             this.messageId = '';
             this.frame = 0;
             this.prose = null;
-            this.card = h('article', { class: 'card' },
-                h('div', { class: 'typing', role: 'status', 'aria-label': '…' }, h('span'), h('span'), h('span')));
-            this.node = h('div', { class: 'msg msg--bot' }, h('span', { class: 'avatar' }, icon('sparkles')), this.card);
-            thread.append(this.node);
+            this.meta = h('div', { class: 'answer-meta' });
+            this.body = h('div', { class: 'answer-body' },
+                h('div', { class: 'skeleton', role: 'status', 'aria-label': t('assistantName') }, h('span'), h('span'), h('span')));
+            this.setMeta();
+            fill(turn.answer, this.meta, this.body);
+        }
+
+        /** Answer header: who answered and, once known, how (verified or AI). */
+        setMeta(statusKey = null, noteKey = null) {
+            fill(this.meta, mark(), statusKey ? status(statusKey) : tx('assistantName'),
+                noteKey ? tx(noteKey, 'span', { class: 'status-note' }) : null);
         }
 
         /** Streams text in, re-rendering at most once per frame. */
@@ -237,7 +251,7 @@
                 if (!visible) return;
                 if (!this.prose) {
                     this.prose = h('div', { class: 'prose' });
-                    this.card.replaceChildren(this.prose);
+                    fill(this.body, this.prose);
                 }
                 this.prose.innerHTML = renderMarkdown(visible);
                 let last = this.prose.lastElementChild;
@@ -251,22 +265,19 @@
             cancelAnimationFrame(this.frame);
             this.frame = 0;
             const text = stripThinking(this.text).trim();
-            this.card.className = 'card';
-            this.card.replaceChildren();
 
             if (!stopped && (end.handoff || text.includes(boot.marker))) {
                 this.renderHandoff(splitHandoff(text));
             } else if (!text) {
-                if (stopped) this.card.append(tx('stopped', 'p', { class: 'stopped-note' }));
+                if (stopped) fill(this.body, tx('stopped', 'p', { class: 'stopped-note' }));
                 else this.fail(t('errorGeneric'));
             } else if (stopped) {
-                this.card.append(h('div', { class: 'prose', html: renderMarkdown(text.split(boot.marker).join('')) }), tx('stopped', 'p', { class: 'stopped-note' }));
+                fill(this.body, prose(text.split(boot.marker).join('')), tx('stopped', 'p', { class: 'stopped-note' }));
             } else {
                 const sources = end.sources || [];
-                fill(this.card,
-                    badge(end.verified ? 'verified' : sources.length ? 'aiFromDocs' : 'aiAnswer'),
-                    h('div', { class: 'prose', html: renderMarkdown(text) }),
-                    end.verified ? tx('verifiedFoot', 'p', { class: 'card-foot' }) : null,
+                this.setMeta(end.verified ? 'verified' : sources.length ? 'aiFromDocs' : 'aiAnswer', end.verified ? 'verifiedFoot' : null);
+                fill(this.body,
+                    prose(text),
                     !end.verified && sources.length ? sourcesRow(sources) : null,
                     !end.verified && this.messageId ? this.feedbackRow() : null,
                 );
@@ -275,13 +286,12 @@
         }
 
         renderHandoff({ title, body }) {
-            this.card.className = 'card card--handoff';
-            fill(this.card,
-                title ? h('h3', { class: 'handoff-title', text: title }) : tx('handoffTitle', 'h3', { class: 'handoff-title' }),
-                body ? h('div', { class: 'prose', html: renderMarkdown(body) }) : null,
+            fill(this.body, h('section', { class: 'handoff' },
+                h('h3', { class: 'handoff-title' }, icon('users'), title ? h('span', { text: title }) : tx('handoffTitle')),
+                body ? prose(body) : null,
                 contactList(),
                 tx('handoffTip', 'p', { class: 'handoff-tip' }),
-            );
+            ));
         }
 
         feedbackRow() {
@@ -320,10 +330,9 @@
         fail(message, retry) {
             cancelAnimationFrame(this.frame);
             this.frame = 0;
-            this.card.className = 'card card--error';
-            fill(this.card,
-                h('div', { class: 'error-row', role: 'alert' }, icon('alert'), h('span', { text: message })),
-                retry ? h('button', { type: 'button', class: 'btn-retry', onclick: retry }, icon('retry'), tx('retry')) : null,
+            fill(this.body,
+                h('div', { class: 'answer-error', role: 'alert' }, icon('alert'), h('span', { text: message })),
+                retry ? h('button', { type: 'button', class: 'btn-quiet', onclick: retry }, icon('retry'), tx('retry')) : null,
             );
             stickToBottom();
         }
@@ -369,11 +378,10 @@
         showChat();
         if (state.topic) selectTopic(null);
         const session = state.session;
-        const user = addUserMessage(question);
-        const bot = new BotMessage();
+        const turn = startTurn(question);
+        const bot = new BotMessage(turn);
         const retry = () => {
-            user.node.remove();
-            bot.node.remove();
+            turn.node.remove();
             ask(question);
         };
         stickToBottom(true);
@@ -402,7 +410,7 @@
                 if (session !== state.session) return;
                 switch (event.type) {
                     case 'start':
-                        if (event.redacted) user.showRedacted(event.query);
+                        if (event.redacted) turn.showRedacted(event.query);
                         break;
                     case 'meta':
                         state.conversationId = event.conversation_id || state.conversationId;
@@ -446,8 +454,7 @@
 
         if (expired) {
             // The server forgot this conversation; start a fresh one with the same question.
-            user.node.remove();
-            bot.node.remove();
+            turn.node.remove();
             state.conversationId = '';
             ask(question, { retried: true });
         }
@@ -469,18 +476,29 @@
         sendBtn.type = busy ? 'button' : 'submit';
         sendBtn.dataset.i18nLabel = key;
         sendBtn.setAttribute('aria-label', t(key));
-        sendBtn.replaceChildren(icon(busy ? 'stop' : 'arrow-right'));
+        sendBtn.replaceChildren(icon(busy ? 'stop' : 'arrow-up'));
     }
 
     function setPlaceholder(key) {
         input.dataset.i18nPlaceholder = key;
         input.placeholder = t(key);
+        autosize();
+    }
+
+    /** The one composer sits in the welcome hero, then docks under the conversation. */
+    function placeComposer() {
+        const slot = app.dataset.view === 'chat' ? dockSlot : heroSlot;
+        if (form.parentElement === slot) return;
+        const hadFocus = document.activeElement === input;
+        slot.prepend(form);
+        if (hadFocus) input.focus();
     }
 
     function showChat() {
         if (app.dataset.view === 'chat') return;
         app.dataset.view = 'chat';
         setPlaceholder('placeholderNext');
+        placeComposer();
     }
 
     function newChat() {
@@ -493,11 +511,11 @@
         thread.replaceChildren();
         app.dataset.view = 'welcome';
         setPlaceholder('placeholderFirst');
+        placeComposer();
         selectTopic(null);
         input.value = '';
         autosize();
         scroller.scrollTop = 0;
-        closeDrawer();
         if (!narrow.matches) input.focus();
     }
 
@@ -505,15 +523,14 @@
         const list = state.topic
             ? topicsById[state.topic].questions.map((q) => [state.topic, q])
             : boot.featured.map(([id, index]) => [id, topicsById[id].questions[index]]);
-        cardsLabel.hidden = !state.topic;
-        cardsLabel.textContent = state.topic ? `${t('suggestionsFor')} · ${pick(topicsById[state.topic].label)}` : '';
-        cards.replaceChildren(...list.map(([id, question], i) => {
-            const card = h('button', { type: 'button', class: 'q-card', onclick: () => ask(pick(question)) },
-                h('span', { class: 'q-topic', text: pick(topicsById[id].short) }),
-                h('span', { class: 'q-text', text: pick(question) }));
-            card.style.animationDelay = `${i * 40}ms`;
-            return card;
-        }));
+        cardsLabel.textContent = state.topic ? `${t('suggestionsFor')} · ${pick(topicsById[state.topic].label)}` : t('suggestionsFor');
+        cards.replaceChildren(...list.map(([id, question], i) => h('li', {},
+            h('button', { type: 'button', class: 'q', onclick: () => ask(pick(question)) },
+                h('span', { class: 'q-num', 'aria-hidden': 'true', text: String(i + 1).padStart(2, '0') }),
+                h('span', {},
+                    h('span', { class: 'q-topic', text: pick(topicsById[id].short) }),
+                    h('span', { class: 'q-text', text: pick(question) })),
+                icon('arrow-right')))));
     }
 
     function showSuggestions(id) {
@@ -543,28 +560,9 @@
         document.querySelectorAll('[data-topic-label]').forEach((n) => { n.textContent = pick(topicsById[n.dataset.topicLabel].label); });
         document.querySelectorAll('.source-label').forEach((n) => { n.textContent = sourceLabel(n._source); });
         input.placeholder = t(input.dataset.i18nPlaceholder);
+        autosize();
         renderCards();
         if (state.topic && app.dataset.view === 'chat') showSuggestions(state.topic);
-    }
-
-    function syncDrawer() {
-        const open = app.classList.contains('drawer-open');
-        sidebar.inert = narrow.matches && !open;
-        scrim.hidden = !open;
-        drawerToggle.setAttribute('aria-expanded', String(open));
-    }
-
-    function openDrawer() {
-        app.classList.add('drawer-open');
-        syncDrawer();
-        sidebar.querySelector('.drawer-close').focus();
-    }
-
-    function closeDrawer() {
-        if (!app.classList.contains('drawer-open')) return;
-        app.classList.remove('drawer-open');
-        syncDrawer();
-        drawerToggle.focus();
     }
 
     /* Keeps the newest text in view unless the reader has scrolled up. */
@@ -578,9 +576,14 @@
         if (pinned) scroller.scrollTop = scroller.scrollHeight;
     }
 
+    /** Grows the box with its text, or with the placeholder when empty (it wraps on phones). */
     function autosize() {
         input.style.height = 'auto';
-        input.style.height = `${Math.min(input.scrollHeight, 180)}px`;
+        const empty = input.value === '';
+        if (empty) input.value = input.placeholder;
+        const height = Math.min(input.scrollHeight, 180);
+        if (empty) input.value = '';
+        input.style.height = `${height}px`;
     }
 
     /* ---------- Events ---------- */
@@ -605,6 +608,7 @@
     });
 
     input.addEventListener('input', autosize);
+    addEventListener('resize', autosize, { passive: true });
     input.addEventListener('keydown', (e) => {
         if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
             e.preventDefault();
@@ -616,25 +620,20 @@
         const target = e.target.closest('[data-action], [data-topic], [data-lang]');
         if (!target) return;
         const { action, topic, lang } = target.dataset;
-        if (action === 'new-chat') newChat();
-        else if (action === 'open-drawer') openDrawer();
-        else if (action === 'close-drawer') closeDrawer();
-        else if (topic) {
+        if (action === 'new-chat') {
+            e.preventDefault();
+            newChat();
+        } else if (topic) {
             selectTopic(state.topic === topic ? null : topic);
-            closeDrawer();
-        } else if (lang) setLang(lang);
+        } else if (lang) {
+            setLang(lang);
+        }
     });
-
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeDrawer();
-    });
-
-    narrow.addEventListener('change', syncDrawer);
 
     /* ---------- Start ---------- */
 
     setPlaceholder('placeholderFirst');
+    document.fonts?.ready.then(autosize);
     renderCards();
-    syncDrawer();
     if (!narrow.matches) input.focus();
 })();
