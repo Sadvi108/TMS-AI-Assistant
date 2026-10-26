@@ -89,6 +89,14 @@ faq_match = node('faq_match', 680, 282, {
         'answer': {'type': 'string', 'children': None},
         'similarity': {'type': 'number', 'children': None},
     },
+    # Dify Cloud's code sandbox occasionally times out. Retry, and if it still fails,
+    # report "no match" so the question goes to the LLM instead of failing the answer.
+    'retry_config': {'retry_enabled': True, 'max_retries': 2, 'retry_interval': 1000},
+    'error_strategy': 'default-value',
+    'default_value': [
+        {'key': 'answer', 'type': 'string', 'value': ''},
+        {'key': 'similarity', 'type': 'number', 'value': 0},
+    ],
 })
 is_faq = node('is_faq', 980, 282, {
     'title': 'Exact FAQ?',
@@ -117,6 +125,15 @@ for node_id, x, y in (('llm', 1280, 400), ('answer', 1580, 400)):
     nodes[node_id]['position'] = nodes[node_id]['positionAbsolute'] = {'x': x, 'y': y}
 nodes['llm']['data']['selected'] = False
 nodes['llm']['selected'] = False
+# Groq's free tier can rate-limit. Retry, then fall back to the prompt's own "can't answer"
+# sentence, which the website shows as the contact-TMS card rather than an error.
+nodes['llm']['data']['retry_config'] = {'retry_enabled': True, 'max_retries': 2, 'retry_interval': 2000}
+nodes['llm']['data']['error_strategy'] = 'default-value'
+nodes['llm']['data']['default_value'] = [{
+    'key': 'text',
+    'type': 'string',
+    'value': "I'm sorry, I can't answer that from TMS information right now. Please contact TMS support.",
+}]
 
 graph['nodes'] = [nodes[START], nodes[RETRIEVAL], faq_match, is_faq, faq_answer, nodes['llm'], nodes['answer']]
 graph['edges'] = [
