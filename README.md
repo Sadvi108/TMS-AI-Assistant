@@ -92,6 +92,19 @@ Optional: if your app has an input variable for the language, set `DIFY_LANGUAGE
 - Answers stream token by token. Behind nginx, `X-Accel-Buffering: no` is already sent; behind other proxies or CDNs, turn off response buffering for `/api/chat.php`.
 - Set `APP_DEBUG=false` in production.
 
+### Vercel
+
+The Vercel project uses the **Container** framework preset, which builds the root `Dockerfile` (PHP 8.3 serving `public/` on port 80). Set `DIFY_API_BASE`, `DIFY_API_KEY` and the `TMS_*` contact details under **Settings → Environment Variables**, then redeploy.
+
+Vercel can't reach `http://localhost`, so to keep using the Dify on this Mac, open a tunnel:
+
+```bash
+./start.sh     # Docker, Dify, Ollama
+./tunnel.sh    # prints DIFY_API_BASE=https://<random>.trycloudflare.com/v1
+```
+
+`tunnel.sh` publishes only Dify's app API (`/v1/...`) through `tools/dify-gateway.php`; the Dify console stays private. The live site answers only while the tunnel, Docker and Ollama run, and a quick tunnel gets a new address every start, so update `DIFY_API_BASE` in Vercel and redeploy each time. For a permanent address, use a named Cloudflare tunnel on your own domain, or move the app to Dify Cloud (exports in `dify-export/` are made for that).
+
 ## Privacy and safety
 
 - Before a question is sent to Dify, Malaysian IC numbers (`900101-14-5678`), passport numbers (`A12345678`) and card numbers that pass the Luhn check are replaced with `[… removed]`, and the visitor is told.

@@ -46,7 +46,7 @@ cleanup() {
     fi
 }
 trap cleanup EXIT
-trap 'exit 130' INT TERM
+trap 'exit 130' INT TERM HUP
 
 env_value() { sed -n "s/^$1=//p" .env | tail -1; }
 
